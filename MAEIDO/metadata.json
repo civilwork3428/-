@@ -1,0 +1,5 @@
+{
+  "name": "課程滿意度調查",
+  "description": "國土永續研究教育基金會課程滿意度調查工具，支持數據輸入與 JPG/DOC 格式導出。",
+  "requestFramePermissions": []
+}
