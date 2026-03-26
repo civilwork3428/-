@@ -1,0 +1,5 @@
+{
+  "name": "Remix: 經典綠白棋改",
+  "description": "一款精緻的 8x8 綠白棋（奧賽羅）遊戲，支援雙人對戰、流暢動畫與分數追蹤。",
+  "requestFramePermissions": []
+}
