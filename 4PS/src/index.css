@@ -1,0 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-neutral-950 font-sans text-white overflow-x-hidden;
+  }
+}
+
+@layer components {
+  .stat-plate {
+    @apply bg-zinc-900 border border-white/5 px-6 py-3 rounded-2xl text-center min-w-[100px];
+  }
+  .stat-plate .label {
+    @apply text-[10px] text-zinc-600 font-black uppercase mb-1 tracking-widest;
+  }
+  .stat-plate .value {
+    @apply text-2xl font-black italic font-mono leading-none;
+  }
+}
