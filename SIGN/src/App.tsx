@@ -82,37 +82,53 @@ export default function App() {
   const sigCanvas = useRef<SignatureCanvas>(null);
   const certificateRef = useRef<HTMLDivElement>(null);
 
-  // --- Fix Canvas Offset Issue ---
+  // --- Fix Canvas Offset Issue & Stability ---
   useEffect(() => {
     const handleResize = () => {
-      if (sigCanvas.current && !isCertified) {
-        const canvas = sigCanvas.current.getCanvas();
-        // Clear logic to prevent distortion on resize
-        const ratio = Math.max(window.devicePixelRatio || 1, 1);
-        canvas.width = canvas.offsetWidth * ratio;
-        canvas.height = canvas.offsetHeight * ratio;
-        canvas.getContext('2d')?.scale(ratio, ratio);
-        sigCanvas.current.clear();
+      // 增加安全檢查，確保 canvas 與 ref 存在且不在憑證模式
+      if (!isCertified && sigCanvas.current) {
+        try {
+          const canvas = sigCanvas.current.getCanvas();
+          if (canvas) {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            const parent = canvas.parentElement;
+            if (parent) {
+              const width = parent.clientWidth;
+              const height = parent.clientHeight || 280;
+              
+              if (width > 0 && height > 0) {
+                canvas.width = width * ratio;
+                canvas.height = height * ratio;
+                canvas.getContext('2d')?.scale(ratio, ratio);
+                sigCanvas.current.clear(); // 調整大小後必須清除以重新計算
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Canvas resize skipped:', e);
+        }
       }
     };
 
     if (!isCertified) {
       window.addEventListener('resize', handleResize);
-      // Immediate adjustment with small delay for CSS layout to settle
-      const timeout = setTimeout(handleResize, 10);
+      // 使用 requestAnimationFrame 確保在 DOM 完全呈現後執行
+      const animFrame = requestAnimationFrame(handleResize);
       return () => {
         window.removeEventListener('resize', handleResize);
-        clearTimeout(timeout);
+        cancelAnimationFrame(animFrame);
       };
     }
   }, [isCertified]);
 
   // Clear signature
   const clearSignature = () => {
-    sigCanvas.current?.clear();
-    setSignature(null);
-    setIsCertified(false);
-    setIsAgreed(false);
+    if (sigCanvas.current) {
+      sigCanvas.current.clear();
+      setSignature(null);
+      setIsCertified(false);
+      setIsAgreed(false);
+    }
   };
 
   // Produce Signature
@@ -128,26 +144,31 @@ export default function App() {
       return;
     }
     
-    const now = new Date();
-    const userAgent = navigator.userAgent;
-    
-    // 取得簽名圖片
-    const signatureData = canvas.toDataURL('image/png');
-    
-    setSignature(signatureData);
-    setCertInfo({
-      timestamp: getCurrentTimestamp(),
-      serial: generateSerial(),
-      code12: get12DigitCode(now),
-      deviceInfo: userAgent
-    });
-    setIsCertified(true);
-    
-    // 後台存証模擬 (開發者控制台可見)
-    console.log('--- 數位授權存證成功 ---');
-    console.log('當前用戶設備:', userAgent);
-    console.log('簽署時間點:', now.toISOString());
-    console.log('稽核序號:', certInfo.serial);
+    try {
+      const now = new Date();
+      const userAgent = navigator.userAgent;
+      
+      // 取得簽名圖片 (Data URL)
+      const signatureData = canvas.toDataURL('image/png');
+      
+      if (!signatureData) throw new Error('Failed to generate image data');
+
+      setSignature(signatureData);
+      setCertInfo({
+        timestamp: getCurrentTimestamp(),
+        serial: generateSerial(),
+        code12: get12DigitCode(now),
+        deviceInfo: userAgent
+      });
+      setIsCertified(true);
+      
+      // 後台存証模擬
+      console.log('--- 數位授權存證成功 ---');
+      console.log('時間:', now.toISOString());
+    } catch (err) {
+      console.error('Produce failed:', err);
+      alert('產製過程中發生錯誤，請重新試一次');
+    }
   };
 
   // Export Certificate
@@ -256,22 +277,27 @@ export default function App() {
               )}
 
               {/* Signature Canvas / Result Overlay */}
-              <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-8">
+              <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-4 md:p-8 overflow-hidden touch-none">
                 {!isCertified ? (
-                  <div className="w-full relative">
+                  <div className="w-full relative h-[280px] bg-slate-50/30 rounded-xl overflow-hidden shadow-inner border border-slate-100">
                     <SignatureCanvas 
                       ref={sigCanvas}
-                      onEnd={() => setSignature(sigCanvas.current?.toDataURL() || null)}
+                      onEnd={() => {
+                        if (sigCanvas.current) {
+                          setSignature(sigCanvas.current.toDataURL());
+                        }
+                      }}
                       canvasProps={{
-                        className: "signature-canvas w-full h-[280px] cursor-crosshair",
+                        className: "signature-canvas w-full h-full cursor-crosshair",
                       }}
                       penColor="#081C15"
+                      velocityFilterWeight={0.1}
                     />
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
-                      <p className="text-8xl italic font-serif text-[#1B4332] opacity-20" style={{ fontFamily: 'Georgia, serif' }}>
+                      <p className="text-6xl md:text-8xl italic font-serif text-[#1B4332] opacity-10" style={{ fontFamily: 'Georgia, serif' }}>
                         王小明
                       </p>
-                      <div className="w-64 h-[2px] bg-gradient-to-r from-transparent via-[#2D6A4F] to-transparent mt-4 opacity-20"></div>
+                      <div className="w-48 md:w-64 h-[1px] bg-[#2D6A4F] mt-4 opacity-10"></div>
                     </div>
                   </div>
                 ) : (
