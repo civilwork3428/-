@@ -82,6 +82,31 @@ export default function App() {
   const sigCanvas = useRef<SignatureCanvas>(null);
   const certificateRef = useRef<HTMLDivElement>(null);
 
+  // --- Fix Canvas Offset Issue ---
+  useEffect(() => {
+    const handleResize = () => {
+      if (sigCanvas.current && !isCertified) {
+        const canvas = sigCanvas.current.getCanvas();
+        // Clear logic to prevent distortion on resize
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        canvas.width = canvas.offsetWidth * ratio;
+        canvas.height = canvas.offsetHeight * ratio;
+        canvas.getContext('2d')?.scale(ratio, ratio);
+        sigCanvas.current.clear();
+      }
+    };
+
+    if (!isCertified) {
+      window.addEventListener('resize', handleResize);
+      // Immediate adjustment with small delay for CSS layout to settle
+      const timeout = setTimeout(handleResize, 10);
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        clearTimeout(timeout);
+      };
+    }
+  }, [isCertified]);
+
   // Clear signature
   const clearSignature = () => {
     sigCanvas.current?.clear();
@@ -239,8 +264,6 @@ export default function App() {
                       onEnd={() => setSignature(sigCanvas.current?.toDataURL() || null)}
                       canvasProps={{
                         className: "signature-canvas w-full h-[280px] cursor-crosshair",
-                        width: 800,
-                        height: 400
                       }}
                       penColor="#081C15"
                     />
