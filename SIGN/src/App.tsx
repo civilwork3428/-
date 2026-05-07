@@ -97,28 +97,32 @@ export default function App() {
       return;
     }
 
-    if (sigCanvas.current?.isEmpty()) {
-      alert('請先在簽署區簽名');
+    const canvas = sigCanvas.current;
+    if (!canvas || canvas.isEmpty()) {
+      alert('請先在簽署區手寫姓名');
       return;
     }
     
     const now = new Date();
     const userAgent = navigator.userAgent;
     
-    setSignature(sigCanvas.current?.toDataURL('image/png') || null);
+    // 取得簽名圖片
+    const signatureData = canvas.toDataURL('image/png');
+    
+    setSignature(signatureData);
     setCertInfo({
       timestamp: getCurrentTimestamp(),
       serial: generateSerial(),
       code12: get12DigitCode(now),
-      deviceInfo: userAgent // 模擬後台留存設備資訊
+      deviceInfo: userAgent
     });
     setIsCertified(true);
     
-    // 模擬後端存證
-    console.log('--- 數位簽章存證記錄 ---');
-    console.log('時間:', now.toISOString());
-    console.log('設備指紋:', userAgent);
-    console.log('檢核序號:', certInfo.serial);
+    // 後台存証模擬 (開發者控制台可見)
+    console.log('--- 數位授權存證成功 ---');
+    console.log('當前用戶設備:', userAgent);
+    console.log('簽署時間點:', now.toISOString());
+    console.log('稽核序號:', certInfo.serial);
   };
 
   // Export Certificate
@@ -234,8 +238,9 @@ export default function App() {
                       ref={sigCanvas}
                       onEnd={() => setSignature(sigCanvas.current?.toDataURL() || null)}
                       canvasProps={{
-                        className: "signature-canvas w-full cursor-crosshair",
-                        style: { width: '100%', height: '280px' }
+                        className: "signature-canvas w-full h-[280px] cursor-crosshair",
+                        width: 800,
+                        height: 400
                       }}
                       penColor="#081C15"
                     />
@@ -338,8 +343,9 @@ export default function App() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
             {!isCertified ? (
               <motion.button
-                whileTap={{ scale: 0.95 }}
+                whileTap={isAgreed ? { scale: 0.95 } : {}}
                 onClick={handleProduceSignature}
+                disabled={!isAgreed}
                 className={`
                   w-full sm:w-64 h-14 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-md transition-all
                   ${isAgreed ? 'bg-[#1B4332] text-white hover:bg-[#081C15] cursor-pointer' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}
