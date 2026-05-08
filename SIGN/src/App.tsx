@@ -71,7 +71,6 @@ const get12DigitCode = (date: Date) => {
 export default function App() {
   const [signature, setSignature] = useState<string | null>(null);
   const [isCertified, setIsCertified] = useState(false);
-  const [isAgreed, setIsAgreed] = useState(false);
   const [certInfo, setCertInfo] = useState({
     timestamp: '',
     serial: '',
@@ -83,25 +82,30 @@ export default function App() {
   const certificateRef = useRef<HTMLDivElement>(null);
 
   // --- Fix Canvas Offset Issue & Stability ---
+  const lastWidth = useRef(0);
+
   useEffect(() => {
     const handleResize = () => {
-      // 增加安全檢查，確保 canvas 與 ref 存在且不在憑證模式
       if (!isCertified && sigCanvas.current) {
         try {
           const canvas = sigCanvas.current.getCanvas();
-          if (canvas) {
-            const ratio = Math.max(window.devicePixelRatio || 1, 1);
-            const parent = canvas.parentElement;
-            if (parent) {
-              const width = parent.clientWidth;
-              const height = parent.clientHeight || 280;
+          const parent = canvas?.parentElement;
+          if (canvas && parent) {
+            const currentWidth = parent.clientWidth;
+            // 只有寬度發生顯著變化（例如：轉向）才調整，避免手機網址列伸縮導致清空
+            if (Math.abs(currentWidth - lastWidth.current) > 20) {
+              const ratio = Math.max(window.devicePixelRatio || 1, 1);
+              const height = parent.clientHeight || 400;
               
-              if (width > 0 && height > 0) {
-                canvas.width = width * ratio;
-                canvas.height = height * ratio;
-                canvas.getContext('2d')?.scale(ratio, ratio);
-                sigCanvas.current.clear(); // 調整大小後必須清除以重新計算
+              canvas.width = currentWidth * ratio;
+              canvas.height = height * ratio;
+              canvas.getContext('2d')?.scale(ratio, ratio);
+              
+              // 只有在寬度真的改變時才清空（例如旋轉螢幕）
+              if (lastWidth.current !== 0) {
+                sigCanvas.current.clear();
               }
+              lastWidth.current = currentWidth;
             }
           }
         } catch (e) {
@@ -111,12 +115,12 @@ export default function App() {
     };
 
     if (!isCertified) {
+      // 延遲初次計算，確保父容器寬度已渲染
+      const timer = setTimeout(handleResize, 100);
       window.addEventListener('resize', handleResize);
-      // 使用 requestAnimationFrame 確保在 DOM 完全呈現後執行
-      const animFrame = requestAnimationFrame(handleResize);
       return () => {
         window.removeEventListener('resize', handleResize);
-        cancelAnimationFrame(animFrame);
+        clearTimeout(timer);
       };
     }
   }, [isCertified]);
@@ -127,17 +131,11 @@ export default function App() {
       sigCanvas.current.clear();
       setSignature(null);
       setIsCertified(false);
-      setIsAgreed(false);
     }
   };
 
   // Produce Signature
   const handleProduceSignature = () => {
-    if (!isAgreed) {
-      alert('請先勾選本人親自簽署確認聲明');
-      return;
-    }
-
     const canvas = sigCanvas.current;
     if (!canvas || canvas.isEmpty()) {
       alert('請先在簽署區手寫姓名');
@@ -230,7 +228,7 @@ export default function App() {
                 relative bg-white rounded-3xl shadow-lg border border-[#D8E2DC] overflow-hidden transition-all duration-500
                 ${isCertified ? 'shadow-green-100/50' : ''}
               `}
-              style={{ minHeight: '420px' }}
+              style={{ minHeight: '560px' }}
             >
               {/* Organic Background Elements (SVG Leaves) */}
               <div className="absolute inset-0 pointer-events-none opacity-40">
@@ -277,9 +275,9 @@ export default function App() {
               )}
 
               {/* Signature Canvas / Result Overlay */}
-              <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-4 md:p-8 overflow-hidden touch-none">
+              <div className="relative z-10 w-full flex-1 flex flex-col items-center justify-center p-4 md:p-8 overflow-hidden touch-none">
                 {!isCertified ? (
-                  <div className="w-full relative h-[280px] bg-slate-50/30 rounded-xl overflow-hidden shadow-inner border border-slate-100">
+                  <div className="w-full relative h-[400px] bg-slate-50/30 rounded-xl overflow-hidden shadow-inner border border-slate-100 transition-all duration-300">
                     <SignatureCanvas 
                       ref={sigCanvas}
                       onEnd={() => {
@@ -292,6 +290,9 @@ export default function App() {
                       }}
                       penColor="#081C15"
                       velocityFilterWeight={0.1}
+                      minWidth={1.5}
+                      maxWidth={4}
+                      minDistance={0}
                     />
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
                       <p className="text-6xl md:text-8xl italic font-serif text-[#1B4332] opacity-10" style={{ fontFamily: 'Georgia, serif' }}>
@@ -301,14 +302,14 @@ export default function App() {
                     </div>
                   </div>
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center py-4">
+                  <div className="w-full h-[400px] flex flex-col items-center justify-center py-4">
                     {signature && (
                       <motion.img 
                         initial={{ scale: 0.9, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         src={signature} 
                         alt="Digital Signature" 
-                        className="max-h-64 object-contain filter drop-shadow-sm"
+                        className="max-h-[360px] object-contain filter drop-shadow-sm"
                       />
                     )}
                   </div>
@@ -353,6 +354,52 @@ export default function App() {
                 </button>
               )}
             </div>
+
+            {/* Actions Block: Next to/Below the Sign Box */}
+            <div className="mt-6 flex flex-col items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
+                {!isCertified ? (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleProduceSignature}
+                    className="w-full sm:w-64 h-14 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-md transition-all bg-[#1B4332] text-white hover:bg-[#081C15] cursor-pointer"
+                    id="btn-produce"
+                  >
+                    <Key size={20} />
+                    產製簽章
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      setIsCertified(false);
+                    }}
+                    className="w-full sm:w-64 h-14 bg-slate-800 text-white rounded-2xl font-bold flex items-center justify-center gap-3 shadow-md transition-all cursor-pointer"
+                  >
+                    <RefreshCw size={20} />
+                    重新簽署
+                  </motion.button>
+                )}
+
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleExport}
+                  disabled={!isCertified}
+                  className={`
+                    w-full sm:w-64 h-14 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all border-2
+                    ${isCertified 
+                      ? 'bg-white border-[#40916C] text-[#40916C] hover:bg-[#F0F7F4] shadow-sm cursor-pointer' 
+                      : 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed opacity-60'}
+                  `}
+                  id="btn-export"
+                >
+                  <Download size={20} />
+                  匯出憑證
+                </motion.button>
+              </div>
+            </div>
           </div>
           
           <p className="text-center text-sm text-[#74C69D] mt-4 font-medium flex items-center justify-center gap-2">
@@ -360,9 +407,8 @@ export default function App() {
           </p>
         </div>
 
-        {/* Actions & Legal Declaration */}
+        {/* Legal Disclaimer & Extra Info */}
         <div className="flex flex-col items-center justify-center gap-6 mt-8 pb-12">
-          
           {!isCertified && (
             <div className="w-full max-w-lg mb-4">
               {/* Legal Warning Text */}
@@ -373,69 +419,8 @@ export default function App() {
                   本系統具備數位足跡追蹤功能（包含時間、設備資訊與數位特徵）。代他人簽署或偽造變造數位簽章，可能涉及刑法偽造文書罪，最高可處五年以下有期徒刑。
                 </p>
               </div>
-
-              {/* Consent Checkbox */}
-              <label className="flex items-center gap-3 p-4 bg-white border border-[#D8E2DC] rounded-xl cursor-pointer hover:bg-[#F0F7F4] transition-colors group">
-                <input 
-                  type="checkbox" 
-                  checked={isAgreed}
-                  onChange={(e) => setIsAgreed(e.target.checked)}
-                  className="w-5 h-5 rounded border-gray-300 text-[#1B4332] focus:ring-[#1B4332] cursor-pointer"
-                />
-                <span className="text-sm font-bold text-[#1B4332] select-none">
-                  本人確認由本人親自簽字，並願承擔法律責任。
-                </span>
-              </label>
             </div>
           )}
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
-            {!isCertified ? (
-              <motion.button
-                whileTap={isAgreed ? { scale: 0.95 } : {}}
-                onClick={handleProduceSignature}
-                disabled={!isAgreed}
-                className={`
-                  w-full sm:w-64 h-14 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-md transition-all
-                  ${isAgreed ? 'bg-[#1B4332] text-white hover:bg-[#081C15] cursor-pointer' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}
-                `}
-                id="btn-produce"
-              >
-                <Key size={20} />
-                產製簽章
-              </motion.button>
-            ) : (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  setIsCertified(false);
-                  setIsAgreed(false);
-                }}
-                className="w-full sm:w-64 h-14 bg-slate-800 text-white rounded-2xl font-bold flex items-center justify-center gap-3 shadow-md transition-all cursor-pointer"
-              >
-                <RefreshCw size={20} />
-                重新簽署
-              </motion.button>
-            )}
-
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={handleExport}
-              disabled={!isCertified}
-              className={`
-                w-full sm:w-64 h-14 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all border-2
-                ${isCertified 
-                  ? 'bg-white border-[#40916C] text-[#40916C] hover:bg-[#F0F7F4] shadow-sm cursor-pointer' 
-                  : 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed opacity-60'}
-              `}
-              id="btn-export"
-            >
-              <Download size={20} />
-              匯出憑證
-            </motion.button>
-          </div>
         </div>
       </motion.div>
 
