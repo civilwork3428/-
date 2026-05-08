@@ -23,7 +23,6 @@ import { toPng } from 'html-to-image';
 // --- Constants ---
 const EVENT_INFO = {
   name: '國土永續2026數位簽章活動',
-  date: '2026 / 06 / 01',
   unit: '國土永續2026',
   subheader: '安全・可信・便捷的數位簽署體驗'
 };
@@ -174,7 +173,11 @@ export default function App() {
     if (!certificateRef.current) return;
     
     try {
-      const dataUrl = await toPng(certificateRef.current, { cacheBust: true });
+      const dataUrl = await toPng(certificateRef.current, { 
+        cacheBust: true,
+        pixelRatio: 2, // 提高解析度
+        backgroundColor: '#FFFFFF', // 確保背景為實色
+      });
       const link = document.createElement('a');
       link.download = `數位簽章憑證_${certInfo.serial.slice(0, 8)}.png`;
       link.href = dataUrl;
@@ -304,12 +307,10 @@ export default function App() {
                 ) : (
                   <div className="w-full h-[400px] flex flex-col items-center justify-center py-4">
                     {signature && (
-                      <motion.img 
-                        initial={{ scale: 0.9, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
+                      <img 
                         src={signature} 
                         alt="Digital Signature" 
-                        className="max-h-[360px] object-contain filter drop-shadow-sm"
+                        className="max-h-[360px] object-contain"
                       />
                     )}
                   </div>
@@ -319,11 +320,7 @@ export default function App() {
               {/* Certificate Verification info (Bottom Right - Floating style) */}
               {isCertified && (
                 <div className="absolute bottom-8 right-8 text-right bg-white/90 backdrop-blur-sm p-4 rounded-xl border border-[#B7E4C7] shadow-sm z-20">
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex flex-col items-end"
-                  >
+                  <div className="flex flex-col items-end">
                     <div className="flex items-center gap-1.5 text-[#40916C] font-bold text-sm mb-1">
                       <CheckCircle2 size={16} />
                       <span>數位授權已驗證</span>
@@ -331,7 +328,7 @@ export default function App() {
                     <div className="text-[10px] text-slate-500 font-mono space-y-0.5">
                       <p>簽署時間：{certInfo.timestamp}</p>
                     </div>
-                  </motion.div>
+                  </div>
                 </div>
               )}
 
