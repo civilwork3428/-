@@ -323,7 +323,7 @@ export default function App() {
                   <div className="flex flex-col items-end">
                     <div className="flex items-center gap-1.5 text-[#40916C] font-bold text-sm mb-1">
                       <CheckCircle2 size={16} />
-                      <span>數位授權已驗證</span>
+                      <span>成果紀錄建立</span>
                     </div>
                     <div className="text-[10px] text-slate-500 font-mono space-y-0.5">
                       <p>簽署時間：{certInfo.timestamp}</p>
@@ -335,7 +335,7 @@ export default function App() {
               {/* Certificate Bottom Branding (Static left corner) */}
               <div className="absolute bottom-8 left-8 z-20">
                 <div className="text-[9px] md:text-[10px] text-[#95A5A6] font-medium leading-relaxed">
-                  <p className="font-bold text-[#2D6A4F] text-xs mb-1">官方數位簽署憑證範式</p>
+                  <p className="font-bold text-[#2D6A4F] text-xs mb-1">活動參與暨成果紀錄</p>
                   <p>核發單位：{EVENT_INFO.unit}</p>
                 </div>
               </div>
