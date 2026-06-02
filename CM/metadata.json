@@ -1,0 +1,8 @@
+{
+  "name": "Remix: 法紋藏身",
+  "description": "一款適合長輩與小孩的老幼友善推理遊戲，透過顏色區域與排程邏輯尋找隱藏的法紋核心。",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
