@@ -1,0 +1,8 @@
+{
+  "name": "法紋藏身：雙星輝映",
+  "description": "二星平衡・模塊方陣。本程式為純離線單機版，所有邏輯與資源均整合於單一 HTML 檔案中，無需網路即可遊玩。",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
