@@ -28,9 +28,9 @@ const QUESTIONS: Question[] = [
 ];
 
 const STATUS_LIGHTS = [
-  { icon: "🟢", label: "綠燈(暫時穩定，我還行)", color: "emerald" },
-  { icon: "🟡", label: "黃燈(輕微落後，支援我)", color: "amber" },
-  { icon: "🔴", label: "紅燈(嚴重落後，救命啊)", color: "rose" },
+  { icon: "🟢", label: "綠燈", desc: "暫時穩定，我還行", color: "emerald" },
+  { icon: "🟡", label: "黃燈", desc: "輕微落後，支援我", color: "amber" },
+  { icon: "🔴", label: "紅燈", desc: "嚴重落後，救命啊", color: "rose" },
 ];
 
 const JournalApp: React.FC = () => {
@@ -83,11 +83,12 @@ const JournalApp: React.FC = () => {
 
   // --- Export Logic ---
   
-  const formatDisplayValue = (val: any) => {
+  const formatDisplayValue = (val: any, compact: boolean = false) => {
     if (!val) return '-';
     if (Array.isArray(val)) return val.join(', ');
     if (typeof val === 'object' && 'status' in val) {
       const statusIcon = STATUS_LIGHTS.find(l => l.label === val.status)?.icon || '';
+      if (compact) return statusIcon;
       return `${statusIcon} ${val.status} | ${val.text || '(無概述)'}`;
     }
     return val.toString();
@@ -99,7 +100,7 @@ const JournalApp: React.FC = () => {
       const row: any = { "情報項目": q.text };
       calendar.forEach(day => {
         let val = day.isMissing ? "未紀錄" : (day.data ? day.data[q.id] : "-");
-        row[day.date] = formatDisplayValue(val);
+        row[day.date] = formatDisplayValue(val, true);
       });
       return row;
     });
@@ -125,7 +126,7 @@ const JournalApp: React.FC = () => {
             <td style="padding: 8px; font-weight: bold;">${q.text}</td>
             ${calendar.map(d => {
               let val = d.isMissing ? "情報缺失" : (d.data ? d.data[q.id] : "-");
-              return `<td style="padding: 8px; text-align: center;">${formatDisplayValue(val)}</td>`;
+              return `<td style="padding: 8px; text-align: center;">${formatDisplayValue(val, true)}</td>`;
             }).join('')}
           </tr>
         `).join('')}
@@ -215,7 +216,7 @@ const JournalApp: React.FC = () => {
           ctx.fillStyle = '#0f172a';
           ctx.textAlign = 'center';
           ctx.font = '16px sans-serif';
-          ctx.fillText(formatDisplayValue(val), x + (dayColWidth/2), y + (rowHeight/2) + 6);
+          ctx.fillText(formatDisplayValue(val, true), x + (dayColWidth/2), y + (rowHeight/2) + 6);
         }
       });
     });
@@ -272,16 +273,31 @@ const JournalApp: React.FC = () => {
 
       // Value cell
       ctx.strokeRect(50 + labelWidth, y, width - 100 - labelWidth, rowHeight);
-      ctx.fillStyle = '#0f172a';
+      
+      const val = data[q.id];
+      const isStatus = typeof val === 'object' && val !== null && 'status' in val;
+      let textColor = '#0f172a';
+      let textToDraw = formatDisplayValue(val);
+
+      if (isStatus) {
+        const light = STATUS_LIGHTS.find(l => l.label === val.status);
+        if (light) {
+          if (light.color === 'emerald') textColor = '#059669';
+          else if (light.color === 'amber') textColor = '#d97706';
+          else if (light.color === 'rose') textColor = '#e11d48';
+        }
+        textToDraw = `${val.status} | ${val.text || '(無概述)'}`;
+      }
+
+      ctx.fillStyle = textColor;
       ctx.font = '18px sans-serif';
       
-      const val = formatDisplayValue(data[q.id]);
       // Simple text wrapping for long content
       const maxWidth = width - 130 - labelWidth;
-      if (ctx.measureText(val).width > maxWidth) {
-        ctx.fillText(val.slice(0, 25) + '...', 50 + labelWidth + 20, y + (rowHeight/2) + 7);
+      if (ctx.measureText(textToDraw).width > maxWidth) {
+        ctx.fillText(textToDraw.slice(0, 25) + '...', 50 + labelWidth + 20, y + (rowHeight/2) + 7);
       } else {
-        ctx.fillText(val, 50 + labelWidth + 20, y + (rowHeight/2) + 7);
+        ctx.fillText(textToDraw, 50 + labelWidth + 20, y + (rowHeight/2) + 7);
       }
     });
 
@@ -303,12 +319,30 @@ const JournalApp: React.FC = () => {
         </tr>
       </thead>
       <tbody>
-        ${QUESTIONS.map(q => `
+        ${QUESTIONS.map(q => {
+          const val = data[q.id];
+          const isStatus = typeof val === 'object' && val !== null && 'status' in val;
+          let style = "";
+          let displayText = formatDisplayValue(val);
+
+          if (isStatus) {
+            const light = STATUS_LIGHTS.find(l => l.label === val.status);
+            let color = "black";
+            if (light) {
+              if (light.color === 'emerald') color = "#059669";
+              else if (light.color === 'amber') color = "#d97706";
+              else if (light.color === 'rose') color = "#e11d48";
+            }
+            style = `style="color: ${color}; font-weight: bold;"`;
+            displayText = `${val.status} | ${val.text || '(無概述)'}`;
+          }
+
+          return `
           <tr>
             <td style="padding: 8px; font-weight: bold;">${q.text}</td>
-            <td style="padding: 8px;">${formatDisplayValue(data[q.id])}</td>
+            <td style="padding: 8px;" ${style}>${displayText}</td>
           </tr>
-        `).join('')}
+        `}).join('')}
       </tbody>
     </table>`;
 
@@ -432,7 +466,7 @@ const JournalApp: React.FC = () => {
                        <td className="py-3 text-slate-400 font-bold pr-4">{idx + 1}. {q.text}</td>
                        {calendarPreview.map((d, i) => (
                          <td key={i} className={`text-center p-2 ${d.isMissing ? 'text-slate-800 italic' : 'text-slate-200'}`}>
-                           {d.isMissing || !d.data ? '✕' : formatDisplayValue(d.data[q.id]).slice(0,12)}
+                           {d.isMissing || !d.data ? '✕' : formatDisplayValue(d.data[q.id], true)}
                          </td>
                        ))}
                      </tr>
@@ -478,12 +512,29 @@ const JournalApp: React.FC = () => {
         <div className="text-slate-500 mb-10 font-bold uppercase tracking-widest text-sm">執行官：{answers[19] || "佚名"}</div>
         <div className="w-full max-w-2xl bg-slate-900 rounded-[3rem] p-10 shadow-2xl space-y-6 border border-slate-800 overflow-y-auto max-h-[60vh]">
           <div className="grid grid-cols-1 gap-6">
-            {QUESTIONS.map((q, idx) => (
-              <div key={q.id} onClick={() => setStep(idx)} className="flex flex-col border-b border-slate-800 pb-4 cursor-pointer hover:bg-slate-800/50 p-4 rounded-2xl transition-colors group">
-                <span className="text-slate-500 text-sm font-black uppercase group-hover:text-amber-400 transition-colors">{idx + 1}. {q.text}</span>
-                <span className="text-white font-bold text-2xl mt-1">{formatDisplayValue(answers[q.id])}</span>
-              </div>
-            ))}
+            {QUESTIONS.map((q, idx) => {
+              const val = answers[q.id];
+              const isStatus = typeof val === 'object' && val !== null && 'status' in val;
+              let colorClass = "text-white";
+              let displayText = formatDisplayValue(val);
+
+              if (isStatus) {
+                const light = STATUS_LIGHTS.find(l => l.label === val.status);
+                if (light) {
+                  if (light.color === 'emerald') colorClass = "text-emerald-400";
+                  else if (light.color === 'amber') colorClass = "text-amber-400";
+                  else if (light.color === 'rose') colorClass = "text-rose-400";
+                }
+                displayText = `${val.status} | ${val.text || '(無概述)'}`;
+              }
+
+              return (
+                <div key={q.id} onClick={() => setStep(idx)} className="flex flex-col border-b border-slate-800 pb-4 cursor-pointer hover:bg-slate-800/50 p-4 rounded-2xl transition-colors group">
+                  <span className="text-slate-500 text-sm font-black uppercase group-hover:text-amber-400 transition-colors">{idx + 1}. {q.text}</span>
+                  <span className={`${colorClass} font-bold text-2xl mt-1`}>{displayText}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
         <div className="flex flex-col gap-6 w-full max-w-lg mt-12 mb-20">
@@ -607,14 +658,20 @@ const JournalApp: React.FC = () => {
                     <button
                       key={light.label}
                       onClick={() => setAnswers({ ...answers, [currentQ.id]: { ...currentVal, status: light.label } })}
-                      className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
+                      className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all text-left ${
                         isSelected 
                           ? `bg-${light.color}-500/20 border-${light.color}-500 text-white` 
                           : 'bg-slate-800 border-transparent text-slate-400 hover:border-slate-600'
                       }`}
                     >
-                      <span className="text-2xl">{light.icon}</span>
-                      <span className="text-sm font-black">{light.label}</span>
+                      <div className="flex items-center gap-4">
+                        <span className="text-3xl">{light.icon}</span>
+                        <div>
+                          <span className="text-xl font-black block">{light.label}</span>
+                          <span className="text-[10px] opacity-60 font-bold uppercase tracking-wider">{light.desc}</span>
+                        </div>
+                      </div>
+                      {isSelected && <span className="text-2xl">✓</span>}
                     </button>
                   );
                 })}
